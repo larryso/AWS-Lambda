@@ -5,9 +5,9 @@ import urllib.parse
 # import boto3
 import pandas
 import io
-import utils.redshift_utils as redshift_utils
 
 # from botocore.exceptions import ClientError
+from utils.redshift_utils import RedshiftUtils
 
 my_logger = logger()
 # s3_resource = boto3.resource("s3", region_name="cn-north-1")
@@ -32,12 +32,13 @@ def lambda_handler(event, context):
         ## 读取Excel 中 指定的sheet，该sheet 包含权限相关信息
         df = pandas.read_excel('Redshift Permission Template.xlsx', sheet_name='Group Permission Templete',
                                index_col=TARGET_COL[1])
+        redshiftUtils = RedshiftUtils()
         for index, row in df.iterrows():
             my_logger.info(f'Redshift Group Name: {index}')
             ## 检查 redshif 组是否已经创建，如果未创建则执行 create group
-            if not redshift_utils.group_exist(index):
+            if not redshiftUtils.group_exist(index):
                 my_logger.info(f'Grouo not exist, will create..')
-                redshift_utils.create_redshif_group(index)
+                redshiftUtils.create_redshif_group(index)
             user_permission = row[TARGET_COL[2]].replace('/', '|')
             my_logger.info(user_permission)
             entity_type = row[TARGET_COL[4]]
@@ -49,14 +50,14 @@ def lambda_handler(event, context):
             else:
                 grant_sql_str = grant_sql_str + user_permission + ' IN SCHEMA' + schema
             my_logger.info(f"SQL to be executed: {grant_sql_str}")
-            redshift_utils.execute_sql(grant_sql_str)
+            redshiftUtils.execute_sql(grant_sql_str)
             rls_row =  row[TARGET_COL[6]]
             rls_colum = row[TARGET_COL[6]]
             my_logger.info(rls_row)
             my_logger.info(rls_colum)
             # TODO
             rls_sql_str = rls_row + rls_colum ## to be confirmed
-            redshift_utils.execute_sql(rls_sql_str)
+            redshiftUtils.execute_sql(rls_sql_str)
     except Exception as e:
         my_logger.error(e)
         raise e
